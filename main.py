@@ -1,24 +1,64 @@
 
 #import requests
 import os
+import bs4
+from langchain import hub
 from langchain.llms import HuggingFaceHub
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain.schema import HumanMessage
+from langchain.document_loaders import WebBaseLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.vectorstores import Chroma
+from langchain.schema import StrOutputParser
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.embeddings import HuggingFaceHubEmbeddings
 
 API_TOKEN = os.environ['HUGGINGFACEHUB_API_TOKEN']
 
-hub_llm = HuggingFaceHub(repo_id='gpt2')
-prompt = PromptTemplate(
-  input_variables=["question"],
-  template = "Translate English to SQL: {question}"
-)
-#hub_chain = LLMChain(prompt=prompt, llm=hub_llm, verbose=True)
-#print(hub_chain.run("What is the average age of the respondents using a mobile device?"))
+from langchain.embeddings import HuggingFaceInferenceAPIEmbeddings
 
-text='What would be a good company name for a company that makes colorful socks?'
-messages=[HumanMessage(content=text)]
-print(hub_llm.invoke(messages))
+hf_embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key=API_TOKEN,
+    model_name="sentence-transformers/all-MiniLM-l6-v2"
+)
+
+llm = HuggingFaceHub(repo_id='gpt2')
+
+loader = WebBaseLoader(
+  web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
+  bs_kwargs=dict(
+      parse_only=bs4.SoupStrainer(
+          class_=("post-content", "post-title", "post-header")
+      )
+  ),
+)
+docs = loader.load()
+text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+splits = text_splitter.split_documents(docs)
+vectorstore = Chroma.from_documents(documents=splits, embedding=hf_embeddings.embed_documents)
+retriever = vectorstore.as_retriever()
+print('vectorstore', vectorstore)
+print('retriever', retriever)
+'''
+
+
+prompt = hub.pull("rlm/rag-prompt")
+def format_docs(docs):
+    return "\n\n".join(doc.page_content for doc in docs)
+
+
+rag_chain = (
+    {"context": retriever | format_docs, "question": RunnablePassthrough()}
+    | prompt
+    | llm
+    | StrOutputParser()
+)
+
+#res = rag_chain.invoke("What is Task Decomposition?")
+#print(res)
+'''
+
 '''
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
 API_URL = "https://api-inference.huggingface.co/models/gpt2-large"

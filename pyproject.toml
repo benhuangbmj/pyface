@@ -9,6 +9,9 @@ python = ">=3.10.0,<3.11"
 requests = "2.31.0"
 langchain = "0.0.343"
 huggingface-hub = "0.19.4"
+bs4 = "0.0.1"
+langchainhub = "0.1.14"
+chromadb = "0.4.18"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
