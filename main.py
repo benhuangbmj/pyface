@@ -23,7 +23,7 @@ hf_embeddings = HuggingFaceInferenceAPIEmbeddings(
     model_name="sentence-transformers/all-MiniLM-l6-v2"
 )
 
-llm = HuggingFaceHub(repo_id='gpt2')
+llm = HuggingFaceHub(repo_id='bigscience/bloom', model_kwargs={"max_length": 250})
 
 loader = WebBaseLoader(
   web_paths=("https://lilianweng.github.io/posts/2023-06-23-agent/",),
@@ -36,13 +36,8 @@ loader = WebBaseLoader(
 docs = loader.load()
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 splits = text_splitter.split_documents(docs)
-vectorstore = Chroma.from_documents(documents=splits, embedding=hf_embeddings.embed_documents)
+vectorstore = Chroma.from_documents(splits, hf_embeddings)
 retriever = vectorstore.as_retriever()
-print('vectorstore', vectorstore)
-print('retriever', retriever)
-'''
-
-
 prompt = hub.pull("rlm/rag-prompt")
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
@@ -55,9 +50,9 @@ rag_chain = (
     | StrOutputParser()
 )
 
-#res = rag_chain.invoke("What is Task Decomposition?")
-#print(res)
-'''
+res = rag_chain.invoke("What is an agent?")
+print("res:", res)
+
 
 '''
 headers = {"Authorization": f"Bearer {API_TOKEN}"}
